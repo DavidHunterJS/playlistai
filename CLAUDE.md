@@ -43,11 +43,14 @@ All configuration lives in `config.py`, overridable via environment variables: `
 Run these scripts in order:
 
 ```bash
-# Initialize DB and scan music files (ID3 tags, folder-date parsing, genre extraction)
-python phase1_scan.py [--music-root /music] [--cutoff 2024-01-01]
+# Export Subsonic playlists to M3U files first (playlists live in Subsonic's internal DB)
+python subsonic_export.py --out-dir ~/playlistai/playlists
 
-# Import M3U/M3U8 playlists into the DB
-python phase1_playlists.py [--playlist-dir /music/playlists] [--music-root /music]
+# Initialize DB and scan music files (ID3 tags, folder-date parsing, genre extraction)
+python phase1_scan.py [--music-root ~/media/Audio] [--cutoff 2021-08-31]
+
+# Import the exported M3U playlists into the DB
+python phase1_playlists.py [--playlist-dir ~/playlistai/playlists] [--music-root ~/media/Audio]
 
 # Print metadata coverage report
 python phase1_report.py
@@ -55,6 +58,13 @@ python phase1_report.py
 # Initialize DB schema alone (without scanning)
 python db.py
 ```
+
+**Seedbox paths:**
+- Music root: `~/media/Audio` (contains `mp3/` and `soundcheck/` subdirectories)
+- `mp3/`: ~58,700 songs — all `is_explored=1` (via `EXPLORED_FOLDER_NAMES`)
+- `soundcheck/`: ~178,800 songs — `is_explored` determined by folder date vs `EXPLORED_CUTOFF`
+- Subsonic API: `http://localhost:12851/subsonic` (user: `admin`)
+- Subsonic playlist folder: Subsonic stores playlists internally; use `subsonic_export.py` to dump them
 
 **Key files:**
 
@@ -66,6 +76,7 @@ python db.py
 | `phase1_playlists.py` | Step 1.5: parse M3U/M3U8 files, link songs → `playlists` + `playlist_songs` tables |
 | `phase1_report.py` | Step 1.6: collection inventory, genre coverage, metadata quality stats |
 | `phase2_prep.py` | Assemble positives + stratified negatives, write 80/20 train/val split to `training_manifest` |
+| `subsonic_export.py` | Export all Subsonic playlists to M3U files (run before `phase1_playlists.py`) |
 
 ## Full Phase Plan (Phases 2–6 Not Yet Implemented)
 
