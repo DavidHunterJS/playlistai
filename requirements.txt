@@ -1,0 +1,10 @@
+# Phase 1 (seedbox — no GPU needed)
+mutagen>=1.47
+tqdm>=4.67
+
+# Phase 3–5 (RunPod — install separately on GPU instance)
+# tensorflow>=2.15
+# tensorflow-hub>=0.16
+# librosa>=0.10
+# numpy>=1.26
+# pandas>=2.1
