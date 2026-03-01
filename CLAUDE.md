@@ -56,7 +56,7 @@ python phase1_report.py
 python db.py
 ```
 
-**Phase 1 key files:**
+**Key files:**
 
 | File | Purpose |
 |---|---|
@@ -65,6 +65,7 @@ python db.py
 | `phase1_scan.py` | Steps 1.2–1.4: walk filesystem, extract ID3/mutagen tags, folder-name genre cascade, filename metadata fallback |
 | `phase1_playlists.py` | Step 1.5: parse M3U/M3U8 files, link songs → `playlists` + `playlist_songs` tables |
 | `phase1_report.py` | Step 1.6: collection inventory, genre coverage, metadata quality stats |
+| `phase2_prep.py` | Assemble positives + stratified negatives, write 80/20 train/val split to `training_manifest` |
 
 ## Full Phase Plan (Phases 2–6 Not Yet Implemented)
 
