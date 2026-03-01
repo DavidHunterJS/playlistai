@@ -291,6 +291,12 @@ def run_scan(music_root: str = MUSIC_ROOT, cutoff: str = EXPLORED_CUTOFF, limit:
 
     for file_path in tqdm(new_files, desc="Step 1.2 ID3 scan", unit="song"):
         try:
+            file_path.encode("utf-8")
+        except UnicodeEncodeError:
+            log.debug("Skipping non-UTF-8 path: %r", file_path)
+            errors += 1
+            continue
+        try:
             tags = _load_tags(file_path)
         except Exception as e:
             log.warning("Unhandled error %s: %s", file_path, e)
