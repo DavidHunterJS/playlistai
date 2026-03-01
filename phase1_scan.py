@@ -267,21 +267,29 @@ BATCH_SIZE = 500
 
 # ── Main scan ──────────────────────────────────────────────────────────────────
 
-def run_scan(music_root: str = MUSIC_ROOT, cutoff: str = EXPLORED_CUTOFF):
+def run_scan(music_root: str = MUSIC_ROOT, cutoff: str = EXPLORED_CUTOFF, limit: int = 0):
     init_db(DB_PATH)
     conn = get_connection(DB_PATH)
 
     log.info("Step 1.2 — Scanning %s for audio files …", music_root)
 
-    # Collect all paths first so tqdm can show a total
+    # Collect all paths, then skip those already in the DB
     log.info("Counting files …")
     all_files = list(_iter_audio_files(music_root))
     log.info("Found %d audio files", len(all_files))
 
+    existing = {row[0] for row in conn.execute("SELECT file_path FROM songs")}
+    new_files = [f for f in all_files if f not in existing]
+    log.info("%d already in DB, %d new to process", len(existing), len(new_files))
+
+    if limit and limit > 0:
+        new_files = new_files[:limit]
+        log.info("--limit %d: processing %d files this run", limit, len(new_files))
+
     errors = 0
     batch = []
 
-    for file_path in tqdm(all_files, desc="Step 1.2 ID3 scan", unit="song"):
+    for file_path in tqdm(new_files, desc="Step 1.2 ID3 scan", unit="song"):
         try:
             tags = _load_tags(file_path)
         except Exception as e:
@@ -378,6 +386,8 @@ if __name__ == "__main__":
     parser.add_argument("--music-root", default=MUSIC_ROOT, help="Root music directory")
     parser.add_argument("--cutoff", default=EXPLORED_CUTOFF,
                         help="Explored cutoff date (YYYY-MM-DD or YYYY-WW)")
+    parser.add_argument("--limit", type=int, default=0,
+                        help="Max new songs to process per run (0 = unlimited)")
     args = parser.parse_args()
 
-    run_scan(args.music_root, args.cutoff)
+    run_scan(args.music_root, args.cutoff, args.limit)
