@@ -77,6 +77,7 @@ python db.py
 | `phase1_report.py` | Step 1.6: collection inventory, genre coverage, metadata quality stats |
 | `phase2_prep.py` | Assemble positives + stratified negatives, write 80/20 train/val split to `training_manifest` |
 | `subsonic_export.py` | Export all Subsonic playlists to M3U files (run before `phase1_playlists.py`) |
+| `phase3_extract.py` | RunPod: extract YAMNet embeddings + genre classification for training_manifest songs |
 
 ## Full Phase Plan (Phases 2–6 Not Yet Implemented)
 
