@@ -128,3 +128,6 @@ SUBSONIC_USER = os.environ.get("SUBSONIC_USER", "")
 SUBSONIC_PASS = os.environ.get("SUBSONIC_PASS", "")
 SUBSONIC_API_VERSION = "1.16.1"
 SUBSONIC_CLIENT = "playlistai"
+# Absolute path to music root on the seedbox, as Subsonic is configured to scan.
+# Subsonic's 'path' fields are relative to this root.
+SUBSONIC_MUSIC_ROOT = os.environ.get("SUBSONIC_MUSIC_ROOT", "/home/hd17/bytesizor/media/Audio")

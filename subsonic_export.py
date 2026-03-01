@@ -47,7 +47,7 @@ def _api(endpoint: str, **params) -> dict:
         **params,
     })
     url = f"{base}/rest/{endpoint}?{qs}"
-    with urllib.request.urlopen(url, timeout=30) as resp:
+    with urllib.request.urlopen(url, timeout=120) as resp:
         data = json.loads(resp.read())
     outer = data["subsonic-response"]
     if outer["status"] != "ok":

@@ -78,18 +78,74 @@ python db.py
 | `phase2_prep.py` | Assemble positives + stratified negatives, write 80/20 train/val split to `training_manifest` |
 | `subsonic_export.py` | Export all Subsonic playlists to M3U files (run before `phase1_playlists.py`) |
 | `phase3_extract.py` | RunPod: extract YAMNet embeddings + genre classification for training_manifest songs |
+| `phase4_train.py` | RunPod: train binary classifier, save model + norm stats, write genre centroids to DB |
+| `phase5_inference.py` | RunPod: extract embeddings for 124K unexplored songs, genre fallback, inference, write M3U playlists |
+| `phase6_push.py` | Seedbox: resolve M3U paths to Subsonic IDs, create/update discovery playlists via API |
+| `phase6_sync.py` | Seedbox: pull starred songs from Subsonic → feedback table; prints retrain guidance when ≥50 stars |
 
-## Full Phase Plan (Phases 2–6 Not Yet Implemented)
+## Full Phase Plan (Phases 5–6 Not Yet Implemented)
 
 ```
 Phase 0  Prerequisites: RunPod account, SSH verified, genre keyword dict sampled from folder names
 Phase 1  Seedbox: File scan → SQLite population → M3U playlist import (DONE)
-Phase 2  Training prep: assemble 8K positives + 8K stratified negatives, 80/20 train/val split
+Phase 2  Training prep: assemble 8K positives + 8K stratified negatives, 80/20 train/val split (DONE)
 Phase 3  RunPod: Dual extraction — 1024-dim YAMNet embeddings + genre classification for 16K training songs (~10–14 hrs)
-Phase 4  RunPod: Train dense classifier (1024→256→128→1), compute genre centroids
-Phase 5  RunPod: Extract embeddings for 124K unexplored songs (~70–100 hrs), apply embedding-similarity genre fallback, run predictions, generate playlists
-Phase 6  Seedbox: Push playlists to Subsonic via API, collect star-based feedback, periodic retrain
+Phase 4  RunPod: Train dense classifier (1024→256→128→1), compute genre centroids (DONE)
+Phase 5  RunPod: Extract embeddings for 124K unexplored songs (~70–100 hrs), apply embedding-similarity genre fallback, run predictions, generate playlists (DONE)
+Phase 6  Seedbox: Push playlists to Subsonic via API, collect star-based feedback, periodic retrain (DONE)
 ```
+
+### Running Phase 6 on the seedbox
+
+```bash
+# 6A — push discovery playlists (run once after copying playlists from RunPod)
+scp -r root@RUNPOD_IP:/workspace/playlistai/playlists ~/playlistai/playlists
+python phase6_push.py --playlist-dir ~/playlistai/playlists
+
+# 6B — sync Subsonic stars to feedback table (run periodically)
+python phase6_sync.py
+
+# Full retrain cycle (when phase6_sync.py reports ≥50 new stars):
+scp ~/playlistai/playlistai.db root@RUNPOD_IP:/workspace/playlistai/
+# On RunPod:
+python phase2_prep.py && python phase3_extract.py && python phase4_train.py
+python phase5_inference.py --skip-extraction
+# Back on seedbox:
+scp -r root@RUNPOD_IP:/workspace/playlistai/playlists ~/playlistai/playlists
+python phase6_push.py
+```
+
+### Running Phase 5 on RunPod
+
+```bash
+# Full run (step 1 takes ~70–100 hrs; fully resumable — restart freely)
+python phase5_inference.py --db-path playlistai.db
+
+# Skip embedding extraction (if all embeddings already in DB)
+python phase5_inference.py --db-path playlistai.db --skip-extraction
+
+# Regenerate playlists only (from existing predictions)
+python phase5_inference.py --db-path playlistai.db --skip-extraction --skip-inference
+```
+
+**Playlists generated** (written to `playlists/` as M3U files with seedbox absolute paths):
+- `Discover Master.m3u` — top 200 across all genres
+- `Discover House/Rap/Rock-Metal/Pop/EDM-Electronic.m3u` — top 50 per genre
+- `Discover Mystery.m3u` — top 50 ungenred songs
+- `Discover Borderline.m3u` — top 50 scored 0.45–0.55 (uncertain but interesting)
+
+### Running Phase 4 on RunPod
+
+```bash
+# After phase3_extract.py completes and DB is in /workspace/playlistai/
+python phase4_train.py [--db-path playlistai.db] [--model-dir ./model] [--epochs 200] [--batch-size 256]
+```
+
+Outputs written to `model/`:
+- `playlistai_model.keras` — trained Keras model
+- `norm_stats.npz` — training-set mean + std (required by Phase 5 inference)
+- `model_version.txt` — version string used as key in `predictions` table
+- `checkpoint.keras` — best checkpoint (same weights as final model after early stopping)
 
 **Phase 2 — Negative sampling:** stratified across genres (matching positive distribution), `NEGATIVE_SAMPLE_SIZE = 8000`, `RANDOM_SEED = 42`, results written to `training_manifest` table with `label` (0/1) and `split` ('train'/'val') columns.
 
