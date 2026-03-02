@@ -41,12 +41,12 @@ def _find_playlists(playlist_dir: str) -> list[str]:
 
 def _parse_m3u(m3u_path: str, music_root: str) -> list[str]:
     """
-    Parse an M3U file and return a list of resolved absolute paths.
-    Handles relative and absolute entries, and both UTF-8 and Latin-1 encodings.
-    Strips EXTINF comment lines.
+    Parse an M3U file and return a list of path strings.
+    Absolute paths are returned as-is.
+    Relative paths are returned as-is (resolution against music_root
+    sub-directories is handled at lookup time in run_playlist_import).
+    Handles both UTF-8 and Latin-1 encodings.
     """
-    m3u_dir = Path(m3u_path).parent
-
     for encoding in ("utf-8-sig", "latin-1"):
         try:
             with open(m3u_path, encoding=encoding) as f:
@@ -63,18 +63,8 @@ def _parse_m3u(m3u_path: str, music_root: str) -> list[str]:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
-
         # Normalize Windows path separators
-        line = line.replace("\\", "/")
-        p = Path(line)
-
-        if p.is_absolute():
-            resolved = str(p)
-        else:
-            # Relative to the M3U file's directory
-            resolved = str((m3u_dir / p).resolve())
-
-        paths.append(resolved)
+        paths.append(line.replace("\\", "/"))
 
     return paths
 
@@ -136,7 +126,14 @@ def run_playlist_import(
         insert_pairs = []
 
         for sp in song_paths:
-            sid = path_to_id.get(sp)
+            # Try the path as-is (absolute), then prepend known sub-roots
+            candidates = [
+                sp,
+                f"{music_root}/{sp}",
+                f"{music_root}/mp3/{sp}",
+                f"{music_root}/soundcheck/{sp}",
+            ]
+            sid = next((path_to_id[c] for c in candidates if c in path_to_id), None)
             if sid is None:
                 missing_paths.append(sp)
                 continue
